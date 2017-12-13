@@ -11,16 +11,86 @@ var app = express();
 app.use(bodyParser.json({ type: 'application/json' }));
 
 var router = express.Router();
-router.get('/', function(req, res)
+router.post('/', function(req, res)
 {
-  res.statusCode = 400;
-  return res.json({ faliure: ['Dont do it'] });
+  var type = req.body.type;
+  if (type === null || type === undefined) {
+    res.statusCode = 400
+    return res.json({ error : { message : "Tweet Type not specified in JSON", errorCode : -1 } });
+  }
+  
+  return res.json({ tweet_id : "dan23423534324" });
+
+  var message = req.body.tweet;
+  var tweet_id = req.body.tweet_id;
+  var image = req.body.image;
+  var username = undefined;
+
+  var twitterInstance = undefined;
+  if (type === "bet") {
+    twitterInstance = twitterBet;
+  }
+  else if (type === "premium") {
+    twitterInstance = twitterPremium;
+  }
+  else if (type === "statistics")
+  {
+    // TODO Support premium stats
+    twitterInstance = twitterStatistics;
+
+    tweet_id = req.body.tweet_id;
+    username = config.twitter.bets.username;
+  }
+  
+  if (typeof image && image.length > 50)
+  {
+    uploadImage(twitterInstance, image, res, function(media_id)
+    {
+      var tweet = constructTweet(message, username, tweet_id, media_id);
+      postTweet(twitterInstance, tweet, res);
+    });
+  }
+  else
+  {
+    var tweet = constructTweet(message, username, tweet_id, undefined);  
+    postTweet(twitterInstance, tweet, res);
+  }
 });
 
-router.post('/bet', function(req, res)
+app.use('/tweet', router);
+
+module.exports = app;
+
+function uploadImage(twitterInstance, image, res, callback)
 {
-  console.log(req.body);
-  twitterBet.post('statuses/update', constructTweet(req.body.tweet), function(err, data, response)
+  twitterInstance.post('media/upload', { media_data : image }, function(err, data, response)
+  {
+    if (err)
+    {
+      console.log("There was a problem uploading the image.", err);
+      res.statusCode = err.statusCode;
+      return res.json({ error : { message : err.message, errorCode : err.code } });
+    }
+
+    var media_id = data.media_id_string;
+    var meta = { media_id : media_id };
+    twitterInstance.post('media/metadata/create', meta, function(err, data, response)
+    {
+      if (err)
+      {
+        console.log("There was a problem tweeting the message.", err);
+        res.statusCode = err.statusCode;
+        return res.json({ error : { message : err.message, errorCode : err.code } });
+      }
+
+      callback(media_id);
+    });
+  });
+}
+
+function postTweet(twitterInstance, tweet, res)
+{
+  twitterInstance.post('statuses/update', tweet, function(err, data, response)
   {
     if (err)
     {
@@ -29,45 +99,11 @@ router.post('/bet', function(req, res)
       return res.json({ error : { message : err.message, errorCode : err.code } });
     }
     
-    return res.json({ tweet_id_str : data.id_str });
+    return res.json({ tweet_id : data.id_str });
   });
-});
+}
 
-router.post('/', function(req, res)
-{
-  twitterBet.post('statuses/update', constructTweet("BET PLACED"), function(err, data, response)
-  {
-    if (err) {
-      console.log("There was a problem tweeting the message.", err);
-      return res.json({ error : err });
-    }
-
-    twitterStat.post('statuses/update', constructTweet("BET WON", config.twitter.bets.username, data.id_str), function(err, data, response)
-    {
-      if (err) {
-        console.log("There was a problem tweeting the message.", err);
-        return res.json({ error : err });
-      }
-      
-      return res.json({ tweet_id_str : data.id_str, data : data });
-    });
-  });
-  /*
-  var json =
-  {
-    status : "success",
-    bet:
-    {
-      type: req.body.type
-    }
-  };
-
-  return res.json(json);
-  */
-});
-
-
-function constructTweet(message, user, tweet_id)
+function constructTweet(message, user, tweet_id, image_id)
 {
   var json = { status : message };
 
@@ -75,55 +111,13 @@ function constructTweet(message, user, tweet_id)
     json["status"] = user + " " + message;
   }
 
-  if (tweet_id != undefined) {
+  if (tweet_id !== undefined) {
     json["in_reply_to_status_id"] = tweet_id;
+  }
+
+  if (image_id !== undefined) {
+    json["media_ids"] = [image_id];
   }
 
   return json;
 }
-
-app.use('/tweet', router);
-
-module.exports = app;
-
-
-
-/*
-var Twit = require('twit');
-
-var twitter = new Twit(config.twitter);
-
-twitter.post('statuses/update',
-      { status: "TEST"  },
-      function(err, data, response)
-{
-  if(err) {
-    console.log("There was a problem tweeting the message.", err);
-  }
-});
-*/
-
-
-/*
-var b64content = fs.readFileSync('/path/to/img', { encoding: 'base64' })
-
-// first we must post the media to Twitter
-T.post('media/upload', { media_data: b64content }, function (err, data, response) {
-  // now we can assign alt text to the media, for use by screen readers and
-  // other text-based presentations and interpreters
-  var mediaIdStr = data.media_id_string
-  var altText = "Small flowers in a planter on a sunny balcony, blossoming."
-  var meta_params = { media_id: mediaIdStr, alt_text: { text: altText } }
-
-  T.post('media/metadata/create', meta_params, function (err, data, response) {
-    if (!err) {
-      // now we can reference the media and post a tweet (media will attach to the tweet)
-      var params = { status: 'loving life #nofilter', media_ids: [mediaIdStr] }
-
-      T.post('statuses/update', params, function (err, data, response) {
-        console.log(data)
-      })
-    }
-  })
-})
-*/
