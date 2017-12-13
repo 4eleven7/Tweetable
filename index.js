@@ -19,8 +19,6 @@ router.post('/', function(req, res)
     return res.json({ error : { message : "Tweet Type not specified in JSON", errorCode : -1 } });
   }
   
-  return res.json({ tweet_id : "dan23423534324" });
-
   var message = req.body.tweet;
   var tweet_id = req.body.tweet_id;
   var image = req.body.image;
