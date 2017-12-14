@@ -13,6 +13,8 @@ app.use(bodyParser.json({ type: 'application/json' }));
 var router = express.Router();
 router.post('/', function(req, res)
 {
+  console.log("Working on a tweet!");
+
   var type = req.body.type;
   if (type === null || type === undefined) {
     res.statusCode = 400
@@ -39,17 +41,21 @@ router.post('/', function(req, res)
     tweet_id = req.body.tweet_id;
     username = config.twitter.bets.username;
   }
-  
+  console.log("Still working on a tweet!");
   if (typeof image && image.length > 50)
   {
+    console.log("Working on an image!");
     uploadImage(twitterInstance, image, res, function(media_id)
     {
+      console.log("Now back to working on a tweet!");
       var tweet = constructTweet(message, username, tweet_id, media_id);
       postTweet(twitterInstance, tweet, res);
     });
   }
   else
   {
+    console.log("Ready to Tweet " + message);
+    
     var tweet = constructTweet(message, username, tweet_id, undefined);  
     postTweet(twitterInstance, tweet, res);
   }
@@ -105,11 +111,9 @@ function constructTweet(message, user, tweet_id, image_id)
 {
   var json = { status : message };
 
-  if (user !== undefined) {
+  if (user !== undefined && tweet_id !== undefined)
+  {
     json["status"] = user + " " + message;
-  }
-
-  if (tweet_id !== undefined) {
     json["in_reply_to_status_id"] = tweet_id;
   }
 
