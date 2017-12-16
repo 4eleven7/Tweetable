@@ -22,8 +22,8 @@ router.post('/', function(req, res)
   }
   
   var message = req.body.tweet;
-  var tweet_id = req.body.tweet_id;
   var image = req.body.image;
+  var tweet_id = undefined;
   var username = undefined;
 
   var twitterInstance = undefined;
@@ -37,12 +37,12 @@ router.post('/', function(req, res)
   {
     // TODO Support premium stats
     twitterInstance = twitterStatistics;
-
+	
     tweet_id = req.body.tweet_id;
     username = config.twitter.bets.username;
   }
   console.log("Still working on a tweet!");
-  if (typeof image && image.length > 50)
+  if (typeof image == "string" && image.length > 50)
   {
     console.log("Working on an image!");
     uploadImage(twitterInstance, image, res, function(media_id)
@@ -110,11 +110,14 @@ function postTweet(twitterInstance, tweet, res)
 function constructTweet(message, user, tweet_id, image_id)
 {
   var json = { status : message };
-
-  if (user !== undefined && tweet_id !== undefined)
+  
+  if (typeof tweet_id !== "undefined" && tweet_id)
   {
-    json["status"] = user + " " + message;
-    json["in_reply_to_status_id"] = tweet_id;
+    if (typeof user !== "undefined" && user)
+    {
+      json["status"] = user + " " + message;
+      json["in_reply_to_status_id"] = tweet_id;
+    }
   }
 
   if (image_id !== undefined) {
